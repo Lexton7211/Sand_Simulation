@@ -5,12 +5,6 @@
 #include <cmath>
 
 
-
-
-
-//still have to implemnt sand settling
-
-
 const int WIDTH  = 175;
 const int HEIGHT = 175;
 
@@ -85,43 +79,6 @@ struct waterCell {
     int oldGridY;
     int cellID = 2;
     bool moving;
-
-    void updateWater(int grid[][HEIGHT]){
-      //check down
-      if(gridY + 1 < HEIGHT && grid[gridX][gridY + 1] == 0){
-        moving = true;
-      }
-
-
-      //check down-left and down-right
-      bool leftFirst = rand() & 1;
-
-      int dirs[2] = {-1, 1};
-      if (!leftFirst) std::swap(dirs[0], dirs[1]);
-
-      for (int d : dirs) {
-        int nx = gridX + d;
-        int ny = gridY + 1;
-        if (nx >= 0 && nx < WIDTH && ny < HEIGHT &&
-          grid[nx][ny] == 0) {
-          moving = true;
-          return;
-        }
-      }
-
-      // Sideways flow
-      for (int d : dirs) {
-        int nx = gridX + d;
-        if (nx >= 0 && nx < WIDTH &&
-          grid[nx][gridY] == 0) {
-
-          
-          moving = true;
-          return;
-        }
-      }
-
-    }
 };
 
 std::vector<sandCell> sandCells;
@@ -214,22 +171,14 @@ for (auto& sand : sandCells) {
 
 
 for (auto& water : waterCells) {
-    grid[water.oldGridX][water.oldGridY] = 0;
-
+ bool tempBool = false;
     water.moving = false;
 
-    if (water.gridY < HEIGHT - 1 && grid[water.gridX][water.gridY + 1] == 0) {
-        water.moving = true;
-    } else {
-        water.updateWater(grid);
-    }
+      updateParticle(grid, water.gridX, water.gridY, water.cellID, water.moving, tempBool, water.oldGridX, water.oldGridY);
 
     water.gridX = std::clamp(water.gridX, 0, WIDTH - 1);
     water.gridY = std::clamp(water.gridY, 0, HEIGHT - 1);
 
-
-    water.oldGridX = water.gridX;
-    water.oldGridY = water.gridY;
 }
 
 
@@ -240,6 +189,7 @@ for(auto& sand : sandCells){
       if(water.gridX == sand.gridX && water.gridY == belowY){
         std::swap(water.gridY, sand.gridY);
         sand.moving = true;
+        water.moving = true;
         break;
       }
     }
@@ -283,23 +233,22 @@ SDL_Quit();
   bool allowedToMove;
   int xOffset = 0;
   int yOffset = 0;
-      if (gridY < HEIGHT - 1 && grid[gridX][gridY + 1] == 0){
-        yOffset += 1;
-        moving = true;
-      }
   //check below
-  if(gridY + 1 >= HEIGHT){
-    moving = false;
+  if(cellID == 1 && gridY + 1 < HEIGHT && grid[gridX][gridY + 1] != 1){
+    yOffset += 1;
+    moving = true;
   }
-  else if(grid[gridX][gridY + 1] == 1){
-    moving = false;
+  
+  if((cellID == 2 && gridY + 1 < HEIGHT && grid[gridX][gridY + 1] == 0)){
+    yOffset += 1;
+    moving = true;
   }
+
 
   if (settled && gridY + 1 < HEIGHT &&
     grid[gridX][gridY + 1] == 0) {
     settled = false;
     moving = true;
-    return;
   }
 
   if (!moving) {
@@ -331,8 +280,24 @@ SDL_Quit();
     settled = true;
   }
 
+  bool leftFirst = rand() & 1;
 
+  int dirs[2] = {-1, 1};
+  if (!leftFirst) std::swap(dirs[0], dirs[1]);
+  
+  if(cellID == 2){
+  // Sideways flow
+  for (int d : dirs) {
+    int nx = gridX + d;
+    if (nx >= 0 && nx < WIDTH &&
+        grid[nx][gridY] == 0) {
+     xOffset = d;
 
+      moving = true;
+      break;
+    }
+ }
+}
  //check if allowedToMove
  if(grid[gridX + xOffset][gridY + yOffset] == 0){
     allowedToMove = true;
@@ -354,4 +319,3 @@ SDL_Quit();
   oldGridX = gridX;
   oldGridY = gridY;
 }
-
