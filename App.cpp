@@ -50,6 +50,7 @@ int window_height = 700;
         return 1;
     }
 
+SDL_Color wetSandColor = {149, 125, 68, 255};
 SDL_Color sandColor = {255, 211, 106, 255};
 SDL_Color waterColor = {41, 104, 255, 200};
 
@@ -70,6 +71,7 @@ struct sandCell{
     int cellID = 1;
     bool moving;
     bool settled;
+    bool wet;
 };
 
 struct waterCell {
@@ -138,7 +140,7 @@ while (SDL_PollEvent(&event)) {
               int y = gridY + i;
               if (x >= 0 && x < 175 && y >= 0 && y < 175) {
                 if (i * i + j * j <= r2) { // inside circle
-                  sandCells.push_back({x, y, x, y, 1, true, false});
+                  sandCells.push_back({x, y, x, y, 1, true, false, false});
                 }
               }
             }
@@ -154,18 +156,15 @@ for (auto& sand : sandCells) {
 
     sand.moving = false;
 
-        
-    
         if (rand() & 1) {
           updateParticle(grid, sand.gridX, sand.gridY, sand.cellID, sand.moving, sand.settled, sand.oldGridX, sand.oldGridY);
         } else {
            updateParticle(grid, sand.gridX, sand.gridY, sand.cellID, sand.moving, sand.settled, sand.oldGridX, sand.oldGridY);
         }
-    
+  
 
     sand.gridX = std::clamp(sand.gridX, 0, WIDTH - 1);
     sand.gridY = std::clamp(sand.gridY, 0, HEIGHT - 1);
-
 
 }
 
@@ -196,12 +195,22 @@ for(auto& sand : sandCells){
   }
 }
 
-
+for(auto& sand : sandCells){
+    if(grid[sand.gridX][sand.gridY + 1] == 2) sand.wet = true;
+    if(grid[sand.gridX][sand.gridY - 1] == 2) sand.wet = true;
+    if(grid[sand.gridX + 1][sand.gridY] == 2) sand.wet = true;
+    if(grid[sand.gridX - 1][sand.gridY] == 2) sand.wet = true;
+}
 
 SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 SDL_RenderClear(renderer);
-SDL_SetRenderDrawColor(renderer, sandColor.r, sandColor.g, sandColor.b, sandColor.a);
 for(auto& sand : sandCells){
+  if(sand.wet){
+    SDL_SetRenderDrawColor(renderer, wetSandColor.r, wetSandColor.g, wetSandColor.b, wetSandColor.a);
+  }
+  else{
+    SDL_SetRenderDrawColor(renderer, sandColor.r, sandColor.g, sandColor.b, sandColor.a);
+  }
   int pixelX = sand.gridX * cellSize;
   int pixelY = sand.gridY * cellSize;
   SDL_Rect rect = { pixelX, pixelY, cellSize, cellSize };
