@@ -8,7 +8,7 @@
 const int WIDTH  = 175;
 const int HEIGHT = 175;
 
-void updateParticle(int grid[][HEIGHT], int &gridX, int &gridY, int cellID, bool &moving, bool &settled, int &oldGridX, int &oldGridY);
+void updateParticle(int grid[WIDTH][HEIGHT]);
 
 
 
@@ -62,29 +62,6 @@ SDL_Color waterColor = {41, 104, 255, 200};
 const int cellSize = 4;
 int grid[WIDTH][HEIGHT] = {0};
 
-
-struct sandCell{
-    int gridX;
-    int gridY;
-    int oldGridX;
-    int oldGridY;
-    int cellID = 1;
-    bool moving;
-    bool settled;
-    bool wet;
-};
-
-struct waterCell {
-    int gridX;
-    int gridY;
-    int oldGridX;
-    int oldGridY;
-    int cellID = 2;
-    bool moving;
-};
-
-std::vector<sandCell> sandCells;
-std::vector <waterCell> waterCells;
 bool running = true;
 SDL_Event event;
 while (running){
@@ -113,7 +90,8 @@ while (SDL_PollEvent(&event)) {
               int y = gridY + i;
               if (x >= 0 && x < 175 && y >= 0 && y < 175) {
                 if (i * i + j * j <= r2) { // inside circle
-                  waterCells.push_back({x, y, x, y, 2, true});
+                  if(grid[x][y] == 1 || grid[x][y] == 2) continue;
+                  grid[x][y] = 2;
                 }
               }
             }
@@ -140,7 +118,8 @@ while (SDL_PollEvent(&event)) {
               int y = gridY + i;
               if (x >= 0 && x < 175 && y >= 0 && y < 175) {
                 if (i * i + j * j <= r2) { // inside circle
-                  sandCells.push_back({x, y, x, y, 1, true, false, false});
+                  if(grid[x][y] == 1 || grid[x][y] == 2) continue;
+                  grid[x][y] = 1;
                 }
               }
             }
@@ -151,85 +130,59 @@ while (SDL_PollEvent(&event)) {
     }
 }
 
-//gravity
-for (auto& sand : sandCells) {
-
-    sand.moving = false;
-
-        if (rand() & 1) {
-          updateParticle(grid, sand.gridX, sand.gridY, sand.cellID, sand.moving, sand.settled, sand.oldGridX, sand.oldGridY);
-        } else {
-           updateParticle(grid, sand.gridX, sand.gridY, sand.cellID, sand.moving, sand.settled, sand.oldGridX, sand.oldGridY);
-        }
-  
-
-    sand.gridX = std::clamp(sand.gridX, 0, WIDTH - 1);
-    sand.gridY = std::clamp(sand.gridY, 0, HEIGHT - 1);
-
-}
 
 
-for (auto& water : waterCells) {
- bool tempBool = false;
-    water.moving = false;
 
-      updateParticle(grid, water.gridX, water.gridY, water.cellID, water.moving, tempBool, water.oldGridX, water.oldGridY);
+//update particle
+  updateParticle(grid);
 
-    water.gridX = std::clamp(water.gridX, 0, WIDTH - 1);
-    water.gridY = std::clamp(water.gridY, 0, HEIGHT - 1);
+  for(int x = 0; x < WIDTH; x++){
+    for(int y = 0; y < HEIGHT; y++){
+      if(grid[x][y] == 1 && grid[x][y + 1] == 2){
+        grid[x][y] = 0;
+        grid[x][y + 1] = 0;
 
-}
-
-
-for(auto& sand : sandCells){
-  int belowY = sand.gridY + 1;
-  if(belowY < HEIGHT && grid[sand.gridX][belowY] == 2){
-    for(auto& water : waterCells){
-      if(water.gridX == sand.gridX && water.gridY == belowY){
-        std::swap(water.gridY, sand.gridY);
-        sand.moving = true;
-        water.moving = true;
+        grid[x][y] = 2;
+        grid[x][y + 1] = 1;
         break;
       }
     }
   }
-}
-
-for(auto& sand : sandCells){
-    if(grid[sand.gridX][sand.gridY + 1] == 2) sand.wet = true;
-    if(grid[sand.gridX][sand.gridY - 1] == 2) sand.wet = true;
-    if(grid[sand.gridX + 1][sand.gridY] == 2) sand.wet = true;
-    if(grid[sand.gridX - 1][sand.gridY] == 2) sand.wet = true;
-}
-
+   
 SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 SDL_RenderClear(renderer);
-for(auto& sand : sandCells){
-  if(sand.wet){
-    SDL_SetRenderDrawColor(renderer, wetSandColor.r, wetSandColor.g, wetSandColor.b, wetSandColor.a);
-  }
-  else{
-    SDL_SetRenderDrawColor(renderer, sandColor.r, sandColor.g, sandColor.b, sandColor.a);
-  }
-  int pixelX = sand.gridX * cellSize;
-  int pixelY = sand.gridY * cellSize;
-  SDL_Rect rect = { pixelX, pixelY, cellSize, cellSize };
 
-  SDL_RenderFillRect(renderer, &rect);
+SDL_SetRenderDrawColor(renderer, sandColor.r, sandColor.g, sandColor.b, sandColor.a);
+for(int x = 0; x < WIDTH; x++){
+  for(int y = 0; y < HEIGHT; y++){
+    if(grid[x][y] == 1){
+      int pixelX = x * cellSize;
+      int pixelY = y * cellSize;
+      SDL_Rect rect = { pixelX, pixelY, cellSize, cellSize };
+
+      SDL_RenderFillRect(renderer, &rect);
+    }
+  }
 }
+
 
 SDL_SetRenderDrawColor(renderer, waterColor.r, waterColor.g, waterColor.b, waterColor.a);
-for(auto& water : waterCells){
-  int pixelX = water.gridX * cellSize;
-  int pixelY = water.gridY * cellSize;
-  SDL_Rect rect = { pixelX, pixelY, cellSize, cellSize };
+for(int x = 0; x < WIDTH; x++){
+  for(int y = HEIGHT - 2; y >= 0; y--){
+    if(grid[x][y] == 2){
+      int pixelX = x * cellSize;
+      int pixelY = y * cellSize;
+      SDL_Rect rect = { pixelX, pixelY, cellSize, cellSize };
 
-  SDL_RenderFillRect(renderer, &rect);
+      SDL_RenderFillRect(renderer, &rect);
+    }
+  }
 }
+
 
     SDL_RenderPresent(renderer);
     SDL_Delay(16); // ~60 FPS
-}
+    }
 SDL_DestroyRenderer(renderer);
 SDL_DestroyWindow(window);
 SDL_Quit();
@@ -238,93 +191,84 @@ SDL_Quit();
 
 
 
-  void updateParticle(int grid[][HEIGHT], int &gridX, int &gridY, int cellID, bool &moving, bool &settled, int &oldGridX, int &oldGridY){
-  bool allowedToMove;
-  int xOffset = 0;
-  int yOffset = 0;
+void updateParticle(int grid[WIDTH][HEIGHT]){
   //check below
-  if(cellID == 1 && gridY + 1 < HEIGHT && grid[gridX][gridY + 1] != 1){
-    yOffset += 1;
-    moving = true;
-  }
-  
-  if((cellID == 2 && gridY + 1 < HEIGHT && grid[gridX][gridY + 1] == 0)){
-    yOffset += 1;
-    moving = true;
-  }
+  for(int x = 0; x < WIDTH; x++){
+    for(int y = HEIGHT - 2; y >= 0; y--){
+      if(y + 1 < HEIGHT && grid[x][y + 1] == 0){
+        if(grid[x][y] == 1){
+          grid[x][y] = 0;
+          grid[x][y + 1] = 1;
+          continue;
+        }
 
+        else if(grid[x][y] == 2){
+          grid[x][y] = 0;
+          grid[x][y + 1] = 2;
+          continue;
+        }
+      }
 
-  if (settled && gridY + 1 < HEIGHT &&
-    grid[gridX][gridY + 1] == 0) {
-    settled = false;
-    moving = true;
+  //check left and right
+  if((rand() % 100) < 70){
+    continue;
   }
-
-  if (!moving) {
-    settled = true;
-  }
-
- //check left
- // before sliding
-  if ((rand() % 100) < 70) {
-    return; // 70% chance to not slide this frame
-  }
-
-  if (!moving && gridX > 0 && gridY + 1 < HEIGHT && grid[gridX - 1][gridY + 1] == 0) {
-    moving = true;
-    xOffset = -1;
-    yOffset = 1;
-  }
-  if (!moving) {
-    settled = true;
-  }
-
-  //check right
-  if (!moving && gridX < WIDTH - 1 && gridY + 1 < HEIGHT && grid[gridX + 1][gridY + 1] == 0) {
-    moving = true;
-    xOffset = 1;
-    yOffset = 1;
-  }
-  if (!moving) {
-    settled = true;
-  }
-
-  bool leftFirst = rand() & 1;
-
-  int dirs[2] = {-1, 1};
-  if (!leftFirst) std::swap(dirs[0], dirs[1]);
-  
-  if(cellID == 2){
-  // Sideways flow
-  for (int d : dirs) {
-    int nx = gridX + d;
-    if (nx >= 0 && nx < WIDTH &&
-        grid[nx][gridY] == 0) {
-     xOffset = d;
-
-      moving = true;
-      break;
-    }
- }
-}
- //check if allowedToMove
- if(grid[gridX + xOffset][gridY + yOffset] == 0){
-    allowedToMove = true;
+  bool rightFirst;
+  if((rand() % 100) < 50){
+    rightFirst = true;
   }
   else{
-    allowedToMove = false;
-  }
-  if(!allowedToMove){
-    return;
+    rightFirst = false;
   }
 
-  //update particale location
-  gridX += xOffset;
-  gridY += yOffset;
+      if(rightFirst){
+        if(grid[x][y] != 0 && + 1 < WIDTH && y + 1 < HEIGHT && grid[x + 1][y + 1] == 0){
+          if(grid[x][y] == 1){
+            grid[x][y] = 0;
+            grid[x + 1][y + 1] = 1;
+            continue;
+          }
+          else if(grid[x][y] == 2){
+            grid[x][y] = 0;
+            grid[x + 1][y + 1] = 2;
+            continue;
+          }
+        }
+        else{
+          if(x - 1 > 0 && y + 1 < HEIGHT && grid[x - 1][y + 1] == 0){
+            if(grid[x][y] == 1){
+              grid[x][y] = 0;
+              grid[x - 1][y + 1] = 1;
+              continue;
+            }
+            else if(grid[x][y] == 2){
+              grid[x][y] = 0;
+              grid[x - 1][y + 1] = 2;
+              continue;
+            }
+          }
 
-  grid[gridX][gridY] = cellID;
-  grid[oldGridX][oldGridY] = 0;
+        }
+      }
 
-  oldGridX = gridX;
-  oldGridY = gridY;
+  bool leftFirst = rand() & 1;
+  //Check sideways for water
+      if(grid[x][y] == 2){
+        if(leftFirst){
+          if(x - 1 >= 0 && grid[x - 1][y] == 0){
+            grid[x][y] = 0;
+            grid[x - 1][y] = 2;
+            continue;
+          }
+        }
+        else{
+          if(x + 1 < WIDTH && grid[x + 1][y] == 0){
+            grid[x][y] = 0;
+            grid[x + 1][y] = 2;
+            continue;
+          }
+        }
+      }
+    }
+  }
 }
