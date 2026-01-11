@@ -92,14 +92,15 @@ while (running){
   int mouseY;
   Uint32 mouseState = SDL_GetMouseState(&mouseX, &mouseY);
  
-  double circle_radius = 5;
 
-  // Convert to grid coordinates
-  int gridX = mouseX / cellSize;
-  int gridY = mouseY / cellSize;
-  
   if ( mouseState & SDL_BUTTON(SDL_BUTTON_LEFT)) {
+    double circle_radius = 5;
 
+    // Convert to grid coordinates
+    int gridX = mouseX / cellSize;
+    int gridY = mouseY / cellSize;
+
+    // Safety check
     if (gridX >= 0 && gridX < 175 && gridY >= 0 && gridY < 175) {
       int r2 = circle_radius * circle_radius; // radius squared
       for (int i = -circle_radius; i <= circle_radius; i++) {
@@ -108,32 +109,15 @@ while (running){
           int y = gridY + i;
           if (x >= 0 && x < 175 && y >= 0 && y < 175) {
             if (i * i + j * j <= r2) { // inside circle
-              if(grid[x][y] != CellType::Empty) continue;
               grid[x][y] = chosenCell;
             }
           }
         }
       }
     }
+
   }
 
-  if ( mouseState & SDL_BUTTON(SDL_BUTTON_RIGHT)) {
-
-    if (gridX >= 0 && gridX < 175 && gridY >= 0 && gridY < 175) {
-      int r2 = circle_radius * circle_radius; // radius squared
-      for (int i = -circle_radius; i <= circle_radius; i++) {
-        for (int j = -circle_radius; j <= circle_radius; j++) {
-          int x = gridX + j;
-          int y = gridY + i;
-          if (x >= 0 && x < 175 && y >= 0 && y < 175) {
-            if (i * i + j * j <= r2) { // inside circle
-              grid[x][y] = CellType::Empty;
-            }
-          }
-        }
-      }
-    }
-  }
 
 //update particles
   updateParticle(grid);
@@ -317,4 +301,3 @@ void updateParticle(CellType grid[WIDTH][HEIGHT]){
     }
   }
 }
-
