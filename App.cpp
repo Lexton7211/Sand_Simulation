@@ -1,6 +1,7 @@
 #include <iostream>
 #include <SDL2/SDL.h>
 #include <vector>
+#include <sstream>
 #include <algorithm>
 #include <cmath>
 
@@ -13,24 +14,23 @@ enum class CellType{
   Sand,
   WetSand,
   Water,
-  Oil
+  Oil,
+  Fire
 };
 
 void updateParticle(CellType grid[WIDTH][HEIGHT]);
+void calculateHeatTransfer(CellType grid[WIDTH][HEIGHT], int temperatureMap[WIDTH][HEIGHT], int x, int y);
 
-
-
-
+//temperature is in Celsius
+const int FIRETEMPERATURE = 600;
+const int ROOMTEMPERATURE = 20;
 const double PI = 3.14159;
 
 int main (int argc, char *argv[]) {
   double deltaTime = 1.0 / 60.0;
 
-if(SDL_Init(SDL_INIT_VIDEO) != 0) {
-        std::cerr << "SDL_Init Error: " << SDL_GetError() << std::endl;
-        return 1;
-}
-  
+
+
 int window_width = 700;
 int window_height = 700;
 
@@ -63,13 +63,21 @@ SDL_Color wetSandColor = {178, 164, 93, 255};
 SDL_Color sandColor = {255, 211, 106, 255};
 SDL_Color waterColor = {41, 104, 255, 200};
 SDL_Color oilColor = {75, 22, 7, 200};
-
+SDL_Color fireColor = {255, 59, 1, 255};
 
 
 //grid
 const int cellSize = 4;
 CellType grid[WIDTH][HEIGHT] = {};
 
+//temperature map
+int temperatureMap[WIDTH][HEIGHT] = {};
+
+for(int x = 0; x < WIDTH; x++){
+  for(int y = 0; y < HEIGHT; y++){
+    temperatureMap[x][y] = ROOMTEMPERATURE;
+  }
+}
 
 bool running = true;
 SDL_Event event;
@@ -86,6 +94,7 @@ while (running){
     if(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_2) chosenCell = CellType::WetSand;
     if(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_3) chosenCell = CellType::Water;
     if(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_4) chosenCell = CellType::Oil;
+    if(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_5) chosenCell = CellType::Fire;
 
   }
   int mouseX;
@@ -117,7 +126,7 @@ while (running){
     }
   }
 
-  if ( mouseState & SDL_BUTTON(SDL_BUTTON_RIGHT)) {
+  else if ( mouseState & SDL_BUTTON(SDL_BUTTON_RIGHT)) {
 
     if (gridX >= 0 && gridX < 175 && gridY >= 0 && gridY < 175) {
       int r2 = circle_radius * circle_radius; // radius squared
@@ -135,13 +144,27 @@ while (running){
     }
   }
 
+  
+  for(int x = 0; x < WIDTH; x++){
+    for(int y = 0; y < HEIGHT; y++){
+      if(grid[x][y] == CellType::Fire){
+        temperatureMap[x][y] = FIRETEMPERATURE;
+      }
+      calculateHeatTransfer(grid, temperatureMap, x, y);
+      if(grid[x][y] == CellType::Water && temperatureMap[x][y] >= 100){
+        grid[x][y] = CellType::Empty;
+        temperatureMap[x][y] = ROOMTEMPERATURE;
+      }
+    }
+  }
+
 //update particles
   updateParticle(grid);
+
 
   for(int i = 0; i < 4; i++){
     for(int x = 0; x < WIDTH; x++){
       for(int y = 0; y < HEIGHT; y++){
-
 
         //swaps sand and liquids
         if((grid[x][y] == CellType::Sand || grid[x][y] == CellType::WetSand) && (grid[x][y + 1] == CellType::Water || grid[x][y + 1] == CellType::Oil)){
@@ -175,9 +198,6 @@ while (running){
               (x - 1 > 0 && grid[x - 1][y] == CellType::Water)
             ){grid[x][y] = CellType::WetSand;}
         }
-
-
-
       }
     } 
   }
@@ -189,47 +209,42 @@ SDL_RenderClear(renderer);
 
 for(int x = 0; x < WIDTH; x++){
   for(int y = 0; y < HEIGHT; y++){
-    if(grid[x][y] == CellType::Sand){
-      SDL_SetRenderDrawColor(renderer, sandColor.r, sandColor.g, sandColor.b, sandColor.a);
+    switch (grid[x][y]){
+      case CellType::Sand:
+        SDL_SetRenderDrawColor(renderer, sandColor.r, sandColor.g, sandColor.b, sandColor.a);
+        break;
+
+      case CellType::WetSand:
+        SDL_SetRenderDrawColor(renderer, wetSandColor.r, wetSandColor.g, wetSandColor.b, wetSandColor.a);
+        break;
+
+      case CellType::Water:
+        SDL_SetRenderDrawColor(renderer, waterColor.r, waterColor.g, waterColor.b, waterColor.a);
+        break;
+
+      case CellType::Oil:
+        SDL_SetRenderDrawColor(renderer, oilColor.r, oilColor.g, oilColor.b, oilColor.a);
+        break;
+
+      case CellType::Fire:
+        SDL_SetRenderDrawColor(renderer, fireColor.r, fireColor.g, fireColor.b, fireColor.a);
+        break;
+
+    }
+
+    if(grid[x][y] != CellType::Empty){
       int pixelX = x * cellSize;
       int pixelY = y * cellSize;
       SDL_Rect rect = { pixelX, pixelY, cellSize, cellSize };
 
       SDL_RenderFillRect(renderer, &rect);
     }
-    else if(grid[x][y] == CellType::Water){
-      SDL_SetRenderDrawColor(renderer, waterColor.r, waterColor.g, waterColor.b, waterColor.a);
 
-      int pixelX = x * cellSize;
-      int pixelY = y * cellSize;
-      SDL_Rect rect = { pixelX, pixelY, cellSize, cellSize };
-
-      SDL_RenderFillRect(renderer, &rect);
-    }
-    else if(grid[x][y] == CellType::WetSand){
-      SDL_SetRenderDrawColor(renderer, wetSandColor.r, wetSandColor.g, wetSandColor.b, wetSandColor.a);
-
-      int pixelX = x * cellSize;
-      int pixelY = y * cellSize;
-      SDL_Rect rect = { pixelX, pixelY, cellSize, cellSize };
-
-      SDL_RenderFillRect(renderer, &rect);
-    }
-    else if(grid[x][y] == CellType::Oil){
-      SDL_SetRenderDrawColor(renderer, oilColor.r, oilColor.g, oilColor.b, oilColor.a);
-
-      int pixelX = x * cellSize;
-      int pixelY = y * cellSize;
-      SDL_Rect rect = { pixelX, pixelY, cellSize, cellSize };
-
-      SDL_RenderFillRect(renderer, &rect);
-    }
   }
 }
 
-
     SDL_RenderPresent(renderer);
-    SDL_Delay(10); // ~60 FPS
+    SDL_Delay(10); // 100 FPS
   }
 
 
@@ -246,22 +261,25 @@ void updateParticle(CellType grid[WIDTH][HEIGHT]){
   for(int x = 0; x < WIDTH; x++){
     for(int y = HEIGHT - 2; y >= 0; y--){
       CellType CELLTYPE = grid[x][y];
-
-      if(y + 1 < HEIGHT && grid[x][y + 1] == CellType::Empty){
+  
+      if(CELLTYPE != CellType::Fire && y + 1 < HEIGHT && grid[x][y + 1] == CellType::Empty){
         if(CELLTYPE != CellType::Empty){
           grid[x][y] = CellType::Empty;
           grid[x][y + 1] = CELLTYPE;
           continue;
         }
       }
-
-  //check left and right
+      if(CELLTYPE == CellType::Fire && y - 1 > HEIGHT && grid[x][y - 1] == CellType::Empty){
+        grid[x][y] = CellType::Empty;
+        grid[x][y - 1] = CELLTYPE;
+        continue;
+      }
+  //check down left and down right
   if(CELLTYPE == CellType::Sand || CELLTYPE == CellType::WetSand){
     if((rand() % 100) < 70){
       continue;
     }
   }
-
   bool rightFirst;
   if((rand() % 100) < 50){
     rightFirst = true;
@@ -269,7 +287,7 @@ void updateParticle(CellType grid[WIDTH][HEIGHT]){
   else{
     rightFirst = false;
   }
-
+if(CELLTYPE != CellType::Fire){
       if(rightFirst){
         if(CELLTYPE != CellType::Empty && + 1 < WIDTH && y + 1 < HEIGHT && grid[x + 1][y + 1] == CellType::Empty){
           if(CELLTYPE != CellType::Empty){
@@ -289,8 +307,23 @@ void updateParticle(CellType grid[WIDTH][HEIGHT]){
           }
 
         }
-
-  int timesMoving = 1;
+      }
+  if(CELLTYPE == CellType::Fire){
+    if(rightFirst){
+      if(x + 1 < WIDTH && y - 1 > 0 && grid[x + 1][y - 1] == CellType::Empty){
+        grid[x][y] = CellType::Empty;
+        grid[x + 1][y - 1] = CELLTYPE;
+        continue;
+      }
+    }
+    else{
+      if(x - 1 > 0 && y - 1 > 0 && grid[x - 1][y - 1] == CellType::Empty){
+        grid[x][y] = CellType::Empty;
+        grid[x - 1][y - 1] = CELLTYPE;
+        continue;
+      }
+    }
+  }
   bool leftFirst = rand() & 1;
   if(CELLTYPE == CellType::Oil){
     if((rand() % 100) < 65){
@@ -298,7 +331,7 @@ void updateParticle(CellType grid[WIDTH][HEIGHT]){
     }
   }
   //check sideways for liquids
-      if(CELLTYPE == CellType::Water || CELLTYPE == CellType::Oil){
+      if(CELLTYPE == CellType::Water || CELLTYPE == CellType::Oil || CELLTYPE == CellType::Fire){
         if(leftFirst){
           if(x - 1 >= 0 && grid[x - 1][y] == CellType::Empty){
             grid[x][y] = CellType::Empty;
@@ -318,3 +351,23 @@ void updateParticle(CellType grid[WIDTH][HEIGHT]){
   }
 }
 
+
+void calculateHeatTransfer(CellType grid[WIDTH][HEIGHT], int temperatureMap[WIDTH][HEIGHT], int x, int y){
+      if(grid[x][y] == CellType::Empty) return;
+      int ny = y - 1;
+      if (ny < 0 || grid[x][ny] != CellType::Fire){
+        return;
+      }
+      double k = 0.6;
+      double heatCapacity = 10.0;
+
+      double T_sand = temperatureMap[x][y];
+      double T_fire = temperatureMap[x][ny];
+
+      double Q = k * (T_fire - T_sand);
+
+      // apply heat
+      temperatureMap[x][y]  += Q / heatCapacity;
+      temperatureMap[x][ny] -= Q / heatCapacity;
+      std::cout << Q << "\n";
+    }
