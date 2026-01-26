@@ -27,6 +27,7 @@ void updateWetSand(CellType grid[WIDTH][HEIGHT], int x, int y);
 const int FIRETEMPERATURE = 600;
 const int ROOMTEMPERATURE = 20;
 const double PI = 3.14159;
+int circle_radius = 5;
 
 int main (int argc, char *argv[]) {
   double deltaTime = 1.0 / 60.0;
@@ -64,6 +65,7 @@ int window_height = 1000;
 SDL_Color wetSandColor = {178, 164, 93, 255};
 SDL_Color sandColor = {255, 211, 106, 255};
 SDL_Color waterColor = {41, 104, 255, 200};
+SDL_Color altWaterColor = {41, 90, 255, 200};
 SDL_Color oilColor = {75, 22, 7, 200};
 SDL_Color fireColor = {255, 59, 1, 255};
 
@@ -83,6 +85,8 @@ for(int x = 0; x < WIDTH; x++){
   }
 }
 
+bool reset = false;
+bool paused = false;
 bool running = true;
 SDL_Event event;
 while (running){
@@ -99,13 +103,29 @@ while (running){
     if(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_3) chosenCell = CellType::Water;
     if(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_4) chosenCell = CellType::Oil;
     if(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_5) chosenCell = CellType::Fire;
-
+    if(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_r) reset = true;
+    if(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_p){
+      if(paused) paused = false;
+      else if(!paused) paused = true;
+    }
   }
+
+  if(reset){
+    for(int x = 0; x < WIDTH; x++){
+      for(int y = 0; y < HEIGHT; y++){
+        grid[x][y] = CellType::Empty;
+        temperatureMap[x][y] = 0;
+        updated[x][y] = false;
+        reset = false;
+        paused = false;
+      }
+    }
+    continue;
+  }
+  if(!paused){
   int mouseX;
   int mouseY;
   Uint32 mouseState = SDL_GetMouseState(&mouseX, &mouseY);
- 
-  double circle_radius = 5;
 
   // Convert to grid coordinates
   int gridX = mouseX / cellSize;
@@ -136,8 +156,7 @@ while (running){
       int r2 = circle_radius * circle_radius; // radius squared
       for (int i = -circle_radius; i <= circle_radius; i++) {
         for (int j = -circle_radius; j <= circle_radius; j++) {
-          int x = gridX + j;
-          int y = gridY + i;
+          int x = gridX + j; int y = gridY + i;
           if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) {
             if (i * i + j * j <= r2) { // inside circle
               grid[x][y] = CellType::Empty;
@@ -191,9 +210,13 @@ for(int x = 0; x < WIDTH; x++){
         break;
 
       case CellType::Water:
-        SDL_SetRenderDrawColor(renderer, waterColor.r, waterColor.g, waterColor.b, waterColor.a);
+        if((rand() % 100) < 15){
+          SDL_SetRenderDrawColor(renderer, altWaterColor.r, altWaterColor.g, altWaterColor.b, altWaterColor.a);
+        }
+        else{
+          SDL_SetRenderDrawColor(renderer, waterColor.r, waterColor.g, waterColor.b, waterColor.a); 
+        }
         break;
-
       case CellType::Oil:
         SDL_SetRenderDrawColor(renderer, oilColor.r, oilColor.g, oilColor.b, oilColor.a);
         break;
@@ -217,6 +240,7 @@ for(int x = 0; x < WIDTH; x++){
 
     SDL_RenderPresent(renderer);
     SDL_Delay(10); // 100 FPS
+}
   }
 
 SDL_DestroyRenderer(renderer);
@@ -508,4 +532,3 @@ void updateWetSand(CellType grid[WIDTH][HEIGHT], int x, int y){
     }
   }
 }
-
