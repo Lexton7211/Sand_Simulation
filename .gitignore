@@ -1,0 +1,4 @@
+# Ignore compiled executables (no extension)
+App
+# Ignore files with common compiled extensions
+*.o *.a *.so *.dll *.exe *.bin   
